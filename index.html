@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f7f6f0">
+  <meta name="description" content="いわきの暮らしを地図から見つける、移住者向けマップのプロトタイプ。">
+  <title>いわき暮らしマップ</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #183b39;
+      --muted: #71817d;
+      --paper: #fffefa;
+      --canvas: #f7f6f0;
+      --line: #e9e8df;
+      --green: #276c62;
+      --mint: #dff0e8;
+      --coral: #ed805d;
+      --shadow: 0 12px 32px rgba(30, 55, 49, .13);
+    }
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; }
+    body {
+      overflow: hidden;
+      background: var(--canvas);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    button, input { font: inherit; }
+    button { color: inherit; }
+    #map { position: absolute; inset: 0; background: #e8eee5; z-index: 0; }
+    .leaflet-container { font-family: inherit; }
+    .leaflet-control-attribution { font-size: 9px !important; }
+    .leaflet-control-zoom { display: none; }
+    @media (max-width: 759px) { .leaflet-bottom { bottom: 210px; } }
+    .topbar {
+      position: absolute; z-index: 500; top: max(16px, env(safe-area-inset-top)); left: 50%;
+      transform: translateX(-50%); width: min(100% - 36px, 620px); pointer-events: none;
+    }
+    .brand-row { display: flex; align-items: center; justify-content: space-between; margin: 0 3px 12px; }
+    .brand { display: flex; align-items: center; gap: 10px; pointer-events: auto; }
+    .brand-mark {
+      width: 39px; height: 39px; display: grid; place-items: center; border-radius: 14px;
+      color: white; background: var(--green); box-shadow: 0 5px 14px rgba(39,108,98,.24);
+    }
+    .brand-mark svg { width: 23px; height: 23px; }
+    .brand-name { font-size: 16px; line-height: 1.2; font-weight: 800; letter-spacing: .04em; }
+    .brand-caption { color: var(--muted); font-size: 10px; letter-spacing: .08em; margin-top: 3px; }
+    .round-btn {
+      width: 42px; height: 42px; display: grid; place-items: center; border: 0; border-radius: 50%;
+      background: var(--paper); box-shadow: var(--shadow); cursor: pointer; pointer-events: auto;
+    }
+    .round-btn svg { width: 20px; height: 20px; }
+    .search-wrap { height: 52px; display: flex; align-items: center; gap: 10px; padding: 0 15px; border-radius: 17px; background: var(--paper); box-shadow: var(--shadow); pointer-events: auto; }
+    .search-wrap svg { flex: 0 0 auto; width: 20px; height: 20px; color: #68817a; }
+    .search-wrap input { min-width: 0; flex: 1; outline: 0; border: 0; color: var(--ink); background: transparent; font-size: 14px; }
+    .search-wrap input::placeholder { color: #9ba7a2; }
+    .search-clear { display: none; width: 28px; height: 28px; border: 0; border-radius: 50%; background: #f1f3ef; cursor: pointer; color: #71817d; }
+    .chips { display: flex; gap: 8px; overflow-x: auto; padding: 11px 2px 4px; scrollbar-width: none; pointer-events: auto; }
+    .chips::-webkit-scrollbar { display: none; }
+    .chip { white-space: nowrap; border: 1px solid rgba(226,230,223,.94); border-radius: 999px; padding: 8px 13px; color: #53645f; background: rgba(255,254,250,.95); box-shadow: 0 3px 10px rgba(30,55,49,.07); font-size: 12px; font-weight: 700; cursor: pointer; }
+    .chip.active { color: white; background: var(--green); border-color: var(--green); }
+    .map-label { position: absolute; z-index: 400; left: 20px; top: 203px; padding: 7px 10px; border-radius: 11px; color: #49645c; background: rgba(255,254,250,.88); font-size: 10px; letter-spacing: .04em; box-shadow: 0 3px 12px rgba(30,55,49,.08); pointer-events: none; }
+    .map-actions { position: absolute; z-index: 400; right: 20px; bottom: 240px; display: grid; gap: 9px; }
+    .map-action { width: 46px; height: 46px; display: grid; place-items: center; border: 0; border-radius: 16px; background: var(--paper); box-shadow: var(--shadow); cursor: pointer; }
+    .map-action svg { width: 21px; height: 21px; }
+    .sheet {
+      position: absolute; z-index: 600; left: 50%; bottom: 0; transform: translateX(-50%);
+      width: min(100%, 660px); max-height: 47vh; min-height: 205px; overflow: hidden;
+      border-radius: 24px 24px 0 0; padding: 9px 18px max(17px, env(safe-area-inset-bottom));
+      background: var(--paper); box-shadow: 0 -10px 38px rgba(30,55,49,.13);
+    }
+    .grabber { width: 38px; height: 4px; margin: 0 auto 14px; border-radius: 4px; background: #d8ded8; }
+    .sheet-head { display: flex; align-items: end; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+    .eyebrow { color: var(--green); font-size: 10px; font-weight: 800; letter-spacing: .12em; }
+    .sheet h1 { margin: 3px 0 0; font-size: 19px; line-height: 1.2; letter-spacing: .01em; }
+    .result-count { color: var(--muted); font-size: 11px; white-space: nowrap; padding-bottom: 2px; }
+    .cards { display: flex; gap: 10px; overflow-x: auto; padding: 1px 0 7px; scrollbar-width: none; scroll-snap-type: x mandatory; }
+    .cards::-webkit-scrollbar { display: none; }
+    .place-card { flex: 0 0 246px; min-height: 101px; display: flex; align-items: center; gap: 12px; text-align: left; border: 1px solid var(--line); border-radius: 17px; padding: 12px; background: white; cursor: pointer; scroll-snap-align: start; }
+    .place-card:active { transform: scale(.985); }
+    .place-emoji { flex: 0 0 48px; height: 48px; display: grid; place-items: center; border-radius: 15px; font-size: 23px; background: var(--mint); }
+    .place-meta { min-width: 0; }
+    .place-area { margin-bottom: 4px; color: var(--muted); font-size: 10px; }
+    .place-title { overflow: hidden; margin: 0 0 4px; color: var(--ink); font-size: 13px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+    .place-desc { overflow: hidden; color: #76847e; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+    .fine-print { margin: 4px 2px 0; color: #9aa49f; font-size: 9px; line-height: 1.4; }
+    .marker-shell { background: transparent; border: 0; }
+    .map-pin { position: relative; width: 40px; height: 46px; display: grid; place-items: center; border: 3px solid white; border-radius: 50% 50% 50% 7px; transform: rotate(-45deg); box-shadow: 0 3px 9px rgba(28,55,48,.26); color: white; background: var(--pin, var(--green)); transition: transform .16s ease; }
+    .map-pin span { transform: rotate(45deg); font-size: 17px; }
+    .map-pin.is-selected { transform: rotate(-45deg) scale(1.16); background: var(--coral); }
+    .empty-state { display: none; padding: 22px 8px; color: var(--muted); text-align: center; font-size: 13px; }
+    .toast { position: absolute; z-index: 900; left: 50%; bottom: 225px; transform: translate(-50%, 15px); opacity: 0; padding: 10px 15px; border-radius: 999px; color: white; background: #244c46; font-size: 12px; box-shadow: var(--shadow); transition: .2s; pointer-events: none; white-space: nowrap; }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+    .leaflet-popup-content-wrapper { border-radius: 15px; box-shadow: 0 7px 24px rgba(30,55,49,.15); }
+    .leaflet-popup-content { margin: 12px 15px; font-family: inherit; }
+    .popup-category { color: var(--green); font-size: 10px; font-weight: 800; }
+    .popup-title { margin-top: 2px; font-weight: 800; font-size: 14px; }
+    .popup-desc { margin-top: 4px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+    @media (min-width: 760px) {
+      .topbar { top: 24px; left: 28px; transform: none; width: 360px; }
+      .map-label { top: 219px; left: 30px; }
+      .sheet { left: 24px; bottom: 24px; transform: none; width: 395px; max-height: 62vh; min-height: 220px; border-radius: 23px; padding: 15px 17px 15px; }
+      .grabber { display: none; }
+      .cards { display: grid; grid-template-columns: 1fr; max-height: calc(62vh - 98px); overflow-y: auto; }
+      .place-card { width: 100%; }
+      .map-actions { right: 28px; bottom: 30px; }
+      .toast { bottom: 32px; }
+    }
+    @media (max-width: 380px) {
+      .topbar { width: calc(100% - 24px); top: max(11px, env(safe-area-inset-top)); }
+      .brand-row { margin-bottom: 9px; }
+      .search-wrap { height: 48px; }
+      .chips { padding-top: 8px; }
+      .map-label { top: 191px; left: 13px; }
+      .sheet { min-height: 197px; padding-left: 14px; padding-right: 14px; }
+      .map-actions { right: 13px; bottom: 225px; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; } }
+  </style>
+</head>
+<body>
+  <div id="map" aria-label="いわき市の地図"></div>
+
+  <header class="topbar">
+    <div class="brand-row">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12Z"/><circle cx="12" cy="9" r="2.4"/><path d="M4 20h16"/></svg>
+        </div>
+        <div><div class="brand-name">いわき暮らしマップ</div><div class="brand-caption">IWAKI, THROUGH LOCAL EYES</div></div>
+      </div>
+      <button class="round-btn" id="saveView" aria-label="このエリアを保存" title="このエリアを保存">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4.8A2.8 2.8 0 0 1 8.8 2h6.4A2.8 2.8 0 0 1 18 4.8V22l-6-4-6 4V4.8Z"/></svg>
+      </button>
+    </div>
+    <label class="search-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 5 5"/></svg>
+      <input id="search" type="search" placeholder="場所・エリア・気になること" autocomplete="off" aria-label="地図を検索">
+      <button class="search-clear" id="clearSearch" aria-label="検索をクリア">×</button>
+    </label>
+    <nav class="chips" aria-label="スポットのカテゴリ">
+      <button class="chip active" data-filter="すべて">すべて</button>
+      <button class="chip" data-filter="暮らし">🏡 暮らし</button>
+      <button class="chip" data-filter="食">🍜 食</button>
+      <button class="chip" data-filter="自然">🌿 自然</button>
+      <button class="chip" data-filter="人">🤝 人</button>
+    </nav>
+  </header>
+
+  <div class="map-label">福島県 いわき市　⌖</div>
+  <div class="map-actions">
+    <button class="map-action" id="locate" aria-label="現在地へ移動" title="現在地へ移動">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="2.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5m15 0H22"/></svg>
+    </button>
+    <button class="map-action" id="zoomIn" aria-label="拡大" title="拡大"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+    <button class="map-action" id="zoomOut" aria-label="縮小" title="縮小"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <section class="sheet" aria-label="近くのスポット">
+    <div class="grabber" aria-hidden="true"></div>
+    <div class="sheet-head">
+      <div><div class="eyebrow">DISCOVER IWAKI</div><h1 id="sheetTitle">いわきの暮らしを、地図から。</h1></div>
+      <div class="result-count" id="resultCount"></div>
+    </div>
+    <div class="cards" id="cards"></div>
+    <div class="empty-state" id="emptyState">見つかりませんでした。別の言葉で探してみてください。</div>
+    <p class="fine-print">掲載スポット・説明は画面イメージ用の仮データです。実際の情報は準備中です。</p>
+  </section>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const places = [
+      { id: 'taira', name: 'いわき駅まわり', area: '平', category: '暮らし', emoji: '🚉', lat: 37.05818, lng: 140.89213, desc: 'まちなかの買い物や交通を知る入口' },
+      { id: 'yumoto', name: '湯本の温泉街', area: '常磐湯本町', category: '暮らし', emoji: '♨️', lat: 37.00642, lng: 140.84914, desc: '温泉と日々の暮らしが近いエリア' },
+      { id: 'onahama', name: '小名浜の港まち', area: '小名浜', category: '食', emoji: '🐟', lat: 36.9491, lng: 140.9022, desc: '港の風景や海の食を楽しむエリア' },
+      { id: 'misaki', name: '三崎公園', area: '小名浜下神白', category: '自然', emoji: '🌊', lat: 36.9387, lng: 140.9165, desc: '海を眺めてひと息つける場所' },
+      { id: 'yotsukura', name: '四倉の海辺', area: '四倉', category: '自然', emoji: '🏖️', lat: 37.1053, lng: 140.9893, desc: '海岸沿いの景色に出会えるエリア' },
+      { id: 'ueda', name: '植田駅まわり', area: '植田', category: '暮らし', emoji: '🏡', lat: 36.9203, lng: 140.7976, desc: '市南部の生活動線を知る入口' },
+      { id: 'local-table', name: 'まちの人に聞いてみる', area: '平', category: '人', emoji: '☕', lat: 37.0523, lng: 140.8864, desc: '地域のことを人から知るきっかけ' }
+    ];
+    const categories = {
+      '暮らし': { color: '#28766a', bg: '#dff0e8' },
+      '食': { color: '#db7858', bg: '#fae7db' },
+      '自然': { color: '#5c8d56', bg: '#e5f0dc' },
+      '人': { color: '#7665a6', bg: '#eee8f7' }
+    };
+    const map = L.map('map', { zoomControl: false, scrollWheelZoom: true, tap: true }).setView([37.02, 140.89], 10.5);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a>'
+    }).addTo(map);
+    const markerLayer = L.layerGroup().addTo(map);
+    let activeCategory = 'すべて';
+    let activeId = '';
+    let toastTimer;
+
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
+    }
+    function getFiltered() {
+      const q = document.getElementById('search').value.trim().toLocaleLowerCase('ja');
+      return places.filter(p => (activeCategory === 'すべて' || p.category === activeCategory) &&
+        (!q || `${p.name} ${p.area} ${p.category} ${p.desc}`.toLocaleLowerCase('ja').includes(q)));
+    }
+    function makeMarker(place) {
+      const style = categories[place.category];
+      const html = `<div class="map-pin ${place.id === activeId ? 'is-selected' : ''}" style="--pin:${style.color}"><span>${place.emoji}</span></div>`;
+      const icon = L.divIcon({ className: 'marker-shell', html, iconSize: [40, 46], iconAnchor: [20, 44], popupAnchor: [0, -42] });
+      const marker = L.marker([place.lat, place.lng], { icon, title: place.name, alt: place.name });
+      marker.bindPopup(`<div class="popup-category">${place.category} · ${place.area}</div><div class="popup-title">${place.name}</div><div class="popup-desc">${place.desc}</div>`);
+      marker.on('click', () => { activeId = place.id; render(); });
+      return marker;
+    }
+    function selectPlace(place, shouldPan = true) {
+      activeId = place.id;
+      if (shouldPan) map.flyTo([place.lat, place.lng], Math.max(map.getZoom(), 13), { duration: .45 });
+      render();
+      const marker = markerLayer.getLayers().find(m => m.options.title === place.name);
+      if (marker) marker.openPopup();
+    }
+    function render() {
+      const filtered = getFiltered();
+      markerLayer.clearLayers();
+      filtered.forEach(p => makeMarker(p).addTo(markerLayer));
+      const cards = document.getElementById('cards');
+      cards.innerHTML = '';
+      filtered.forEach(p => {
+        const card = document.createElement('button');
+        card.className = 'place-card'; card.type = 'button';
+        card.setAttribute('aria-label', `${p.name}、${p.area}。地図で見る`);
+        const style = categories[p.category];
+        card.innerHTML = `<span class="place-emoji" style="background:${style.bg}">${p.emoji}</span><span class="place-meta"><span class="place-area">${p.area} · ${p.category}</span><span class="place-title">${p.name}</span><span class="place-desc">${p.desc}</span></span>`;
+        card.addEventListener('click', () => selectPlace(p));
+        cards.appendChild(card);
+      });
+      document.getElementById('resultCount').textContent = `${filtered.length}スポット`;
+      document.getElementById('emptyState').style.display = filtered.length ? 'none' : 'block';
+      cards.style.display = filtered.length ? '' : 'none';
+    }
+    document.querySelectorAll('.chip').forEach(chip => chip.addEventListener('click', () => {
+      document.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c === chip));
+      activeCategory = chip.dataset.filter;
+      activeId = '';
+      render();
+      if (activeCategory === 'すべて') map.setView([37.02, 140.89], 10.5);
+      else {
+        const matches = getFiltered();
+        if (matches.length) map.fitBounds(L.latLngBounds(matches.map(p => [p.lat, p.lng])).pad(.42), { maxZoom: 12 });
+      }
+    }));
+    document.getElementById('search').addEventListener('input', e => {
+      document.getElementById('clearSearch').style.display = e.target.value ? 'block' : 'none';
+      activeId = ''; render();
+    });
+    document.getElementById('clearSearch').addEventListener('click', () => {
+      const search = document.getElementById('search'); search.value = ''; search.focus();
+      document.getElementById('clearSearch').style.display = 'none'; render();
+    });
+    document.getElementById('zoomIn').addEventListener('click', () => map.zoomIn());
+    document.getElementById('zoomOut').addEventListener('click', () => map.zoomOut());
+    document.getElementById('locate').addEventListener('click', () => {
+      if (!navigator.geolocation) return showToast('この端末では現在地を取得できません');
+      showToast('現在地を確認しています…');
+      navigator.geolocation.getCurrentPosition(pos => {
+        map.flyTo([pos.coords.latitude, pos.coords.longitude], 14, { duration: .7 });
+        L.circleMarker([pos.coords.latitude, pos.coords.longitude], { radius: 8, color: '#fff', weight: 3, fillColor: '#3384ed', fillOpacity: 1 }).addTo(map).bindPopup('現在地').openPopup();
+        showToast('現在地に移動しました');
+      }, () => showToast('現在地を取得できません。位置情報の許可を確認してください'), { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
+    });
+    document.getElementById('saveView').addEventListener('click', e => {
+      const btn = e.currentTarget;
+      const saved = btn.dataset.saved === 'true';
+      btn.dataset.saved = String(!saved);
+      btn.style.color = saved ? '' : '#ed805d';
+      showToast(saved ? '保存を解除しました' : 'このエリアを保存しました');
+    });
+    render();
+    window.addEventListener('resize', () => map.invalidateSize());
+  </script>
+</body>
+</html>
