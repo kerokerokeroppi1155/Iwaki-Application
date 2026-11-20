@@ -19,7 +19,7 @@ export default function IwakiMapScreen() {
   const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState('taira');
   const [busy, setBusy] = useState(false);
-  const [saved, setSaved] = useState(false);
+  
 
   const visiblePlaces = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase('ja');
@@ -108,8 +108,8 @@ export default function IwakiMapScreen() {
           onQueryChange={setQuery}
           filter={filter}
           onFilterChange={changeFilter}
-          saved={saved}
-          onToggleSaved={() => setSaved((value) => !value)}
+          
+          
         />
       </SafeAreaView>
 
