@@ -19,7 +19,6 @@ export default function IwakiMapScreen() {
   const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState('taira');
   const [busy, setBusy] = useState(false);
-  
 
   const visiblePlaces = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase('ja');
@@ -51,12 +50,20 @@ export default function IwakiMapScreen() {
 
     const matches = PLACES.filter((place) => place.category === category);
     if (matches.length) {
+      if (matches.length > 1) {
+        mapRef.current?.fitToCoordinates(
+          matches.map((place) => ({ latitude: place.latitude, longitude: place.longitude })),
+          { edgePadding: { top: 180, right: 48, bottom: 300, left: 48 }, animated: true },
+        );
+        return;
+      }
+
       const first = matches[0];
       mapRef.current?.animateToRegion({
         latitude: first.latitude,
         longitude: first.longitude,
-        latitudeDelta: matches.length > 1 ? 0.32 : 0.12,
-        longitudeDelta: matches.length > 1 ? 0.4 : 0.12,
+        latitudeDelta: 0.12,
+        longitudeDelta: 0.12,
       }, 450);
     }
   };
@@ -108,8 +115,6 @@ export default function IwakiMapScreen() {
           onQueryChange={setQuery}
           filter={filter}
           onFilterChange={changeFilter}
-          
-          
         />
       </SafeAreaView>
 

@@ -77,7 +77,6 @@ export default function PlaceSheet({ places, selectedId, bottomInset, onSelectPl
           importantForAccessibility={minimized ? 'auto' : 'no-hide-descendants'}
           style={[styles.minimizedSummary, { opacity: minimizedOpacity }]}
         >
-          <Text style={styles.eyebrow}>DISCOVER IWAKI</Text>
           <Text style={styles.count}>{places.length}スポット</Text>
           <Text style={styles.expandIcon}>⌃</Text>
         </Animated.View>
@@ -97,7 +96,6 @@ export default function PlaceSheet({ places, selectedId, bottomInset, onSelectPl
       >
         <View style={styles.heading}>
           <View>
-            <Text style={styles.eyebrow}>DISCOVER IWAKI</Text>
             <Text style={styles.title}>いわきの暮らしを、地図から。</Text>
           </View>
           <Text style={styles.count}>{places.length}スポット</Text>
@@ -138,7 +136,6 @@ const styles = StyleSheet.create({
   minimizedSummary: { position: 'absolute', top: 17, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   expandedContent: { flexShrink: 0 },
   heading: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 12 },
-  eyebrow: { color: '#276c62', fontSize: 10, fontWeight: '800', letterSpacing: 1.3 },
   title: { color: '#183b39', fontSize: 18, fontWeight: '800', marginTop: 4 },
   count: { color: '#71817d', fontSize: 11, marginBottom: 3 },
   expandIcon: { color: '#276c62', fontSize: 18, fontWeight: '700' },
@@ -155,3 +152,4 @@ const styles = StyleSheet.create({
   emptyText: { color: '#71817d', fontSize: 12, textAlign: 'center' },
   disclaimer: { color: '#9aa49f', fontSize: 9, marginTop: 5, marginBottom: 4 },
 });
+
