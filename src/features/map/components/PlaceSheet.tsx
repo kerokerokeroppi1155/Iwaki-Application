@@ -45,16 +45,16 @@ export default function PlaceSheet({ places, selectedId, bottomInset, onSelectPl
   });
 
   const panResponder = useMemo(() => PanResponder.create({
-    onMoveShouldSetPanResponderCapture: (_, { dx, dy }) => Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx),
-    onPanResponderRelease: (_, { dy }) => {
-      if (dy > 35) setMinimized(true);
-      if (dy < -35) setMinimized(false);
+    onMoveShouldSetPanResponderCapture: (_, { dx, dy }) => Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy),
+    onPanResponderRelease: (_, { dx }) => {
+      if (dx < -35) setMinimized(true);
+      if (dx > 35) setMinimized(false);
     },
   }), []);
 
   return (
     <Animated.View
-      {...panResponder.panHandlers}
+      
       style={[
         styles.sheet,
         {
@@ -64,10 +64,12 @@ export default function PlaceSheet({ places, selectedId, bottomInset, onSelectPl
       ]}
     >
       <Pressable
+        {...panResponder.panHandlers}
         onPress={() => setMinimized((value) => !value)}
         accessibilityRole="button"
         accessibilityLabel={minimized ? 'スポット一覧を展開' : 'スポット一覧を最小化'}
         accessibilityState={{ expanded: !minimized }}
+
         style={styles.handleArea}
       >
         <View style={styles.grabber} />
