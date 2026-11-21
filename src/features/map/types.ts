@@ -1,4 +1,4 @@
-export type Category = '暮らし' | '食' | '自然' | '人';
+export type Category = '公園' | '暮らし' | '食' | '自然' | '人';
 
 export type Place = {
   id: string;
